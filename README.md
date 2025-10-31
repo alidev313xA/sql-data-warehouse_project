@@ -23,7 +23,7 @@ This project involves:
 3. **Data Modeling**: Developing fact and dimension tables (Star Schema) optimized for analytical queries.
 4. **Analytics & Reporting**: Creating SQL-based reports and dashboards for actionable insights.
 
-🎯 The repository excellent resource for professionals and students looking to showcase expertise in:
+🎯 The repository is the excellent resource for professionals and students looking to showcase expertise in:
 - SQL Development
 - Data Architect
 - Data Engineering  
