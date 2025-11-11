@@ -70,7 +70,70 @@ WHERE pn.prd_end_dt IS NULL; -- Filter out all historical data
 GO
 
 -- =============================================================================
--- Create Fact Table: gold.fact_sales
+-- Create Dimension: gold.dim_date (2000–2030)
+-- =============================================================================
+IF OBJECT_ID('gold.dim_date', 'V') IS NOT NULL
+    DROP VIEW gold.dim_date;
+GO
+
+CREATE VIEW gold.dim_date AS
+WITH Numbers AS (
+    SELECT TOP (DATEDIFF(DAY, '2000-01-01', '2030-12-31') + 1)
+        ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1 AS n
+    FROM master.dbo.spt_values a
+    CROSS JOIN master.dbo.spt_values b
+)
+SELECT
+    DATEADD(DAY, n, '2000-01-01') AS date,
+    DATEPART(YEAR, DATEADD(DAY, n, '2000-01-01')) AS year,
+    DATEPART(QUARTER, DATEADD(DAY, n, '2000-01-01')) AS quarter,
+    DATEPART(MONTH, DATEADD(DAY, n, '2000-01-01')) AS month,
+    DATENAME(MONTH, DATEADD(DAY, n, '2000-01-01')) AS month_name,
+    DATEPART(WEEK, DATEADD(DAY, n, '2000-01-01')) AS week_of_year,
+    DATEPART(DAY, DATEADD(DAY, n, '2000-01-01')) AS day,
+    DATENAME(WEEKDAY, DATEADD(DAY, n, '2000-01-01')) AS weekday_name,
+    CASE 
+        WHEN DATENAME(WEEKDAY, DATEADD(DAY, n, '2000-01-01')) IN ('Saturday', 'Sunday') THEN 'Weekend'
+        ELSE 'Weekday'
+    END AS day_type
+FROM Numbers;
+GO
+
+-- Create a physical table (recommended for real warehouses)
+SELECT *
+INTO gold.dim_date_table
+FROM gold.dim_date;
+
+-- =============================================================================
+-- Create Dimension: gold.dim_location
+-- =============================================================================
+IF OBJECT_ID('gold.dim_location', 'V') IS NOT NULL
+    DROP VIEW gold.dim_location;
+GO
+
+CREATE VIEW gold.dim_location AS
+SELECT
+    ROW_NUMBER() OVER (ORDER BY cntry) AS location_key,  -- Surrogate key
+    la.cntry             AS country,
+    CASE 
+        WHEN la.cntry = 'Germany' THEN 'Berlin'
+        WHEN la.cntry = 'United States' THEN 'New York'
+        WHEN la.cntry = 'France' THEN 'Paris'
+		WHEN la.cntry = 'Australia' THEN 'Sydney'
+        ELSE 'Unknown City'
+    END                AS city,
+    CASE 
+        WHEN la.cntry = 'Germany' THEN 'Europe'
+        WHEN la.cntry = 'United States' THEN 'North America'
+        WHEN la.cntry = 'France' THEN 'Europe'
+		WHEN la.cntry = 'Australia' THEN 'Oceana'
+        ELSE 'Unknown Region'
+    END                AS region
+FROM silver.erp_loc_a101 la;
+GO    
+    
+-- =============================================================================
+-- Update Fact Table: gold.fact_sales
 -- =============================================================================
 IF OBJECT_ID('gold.fact_sales', 'V') IS NOT NULL
     DROP VIEW gold.fact_sales;
@@ -78,18 +141,23 @@ GO
 
 CREATE VIEW gold.fact_sales AS
 SELECT
-    sd.sls_ord_num  AS order_number,
-    pr.product_key  AS product_key,
-    cu.customer_key AS customer_key,
-    sd.sls_order_dt AS order_date,
-    sd.sls_ship_dt  AS shipping_date,
-    sd.sls_due_dt   AS due_date,
-    sd.sls_sales    AS sales_amount,
-    sd.sls_quantity AS quantity,
-    sd.sls_price    AS price
+    sd.sls_ord_num      AS order_number,
+    pr.product_key      AS product_key,
+    cu.customer_key     AS customer_key,
+    lo.location_key     AS location_key,
+    dd.date             AS order_date,
+    sd.sls_ship_dt      AS shipping_date,
+    sd.sls_due_dt       AS due_date,
+    sd.sls_sales        AS sales_amount,
+    sd.sls_quantity     AS quantity,
+    sd.sls_price        AS price
 FROM silver.crm_sales_details sd
 LEFT JOIN gold.dim_products pr
     ON sd.sls_prd_key = pr.product_number
 LEFT JOIN gold.dim_customers cu
-    ON sd.sls_cust_id = cu.customer_id;
+    ON sd.sls_cust_id = cu.customer_id
+LEFT JOIN gold.dim_location lo
+    ON cu.country = lo.country
+LEFT JOIN gold.dim_date_table dd
+    ON CAST(sd.sls_order_dt AS DATE) = dd.date
 GO
