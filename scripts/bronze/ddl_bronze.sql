@@ -88,21 +88,3 @@ CREATE TABLE bronze.erp_px_cat_g1v2 (
     maintenance  NVARCHAR(50)
 );
 GO
-
-/*
-===============================================================================
-API SOURCE TABLES (BRONZE)
-===============================================================================
-*/
-
-IF OBJECT_ID('bronze.api_customers', 'U') IS NOT NULL
-    DROP TABLE bronze.api_customers;
-GO
-
-CREATE TABLE bronze.api_customers (
-    cst_id              INT,
-    cst_key             NVARCHAR(50),
-    cst_phone           NVARCHAR(50)
-	cst_create_date     DATE
-);
-GO
