@@ -95,21 +95,3 @@ CREATE TABLE silver.erp_px_cat_g1v2 (
     dwh_create_date DATETIME2 DEFAULT GETDATE()
 );
 GO
-
-
-/* ==========================================================
-   API Source Tables (Silver)
-   ========================================================== */
-
-IF OBJECT_ID('silver.api_cust_info', 'U') IS NOT NULL
-    DROP TABLE silver.api_cust_info;
-GO
-
-CREATE TABLE silver.api_cust_info (
-    cst_id             INT,
-    cst_key            NVARCHAR(50),
-    cst_phone 		   NVARCHAR(50), 
-	cst_create_date    DATE,
-    dwh_create_date    DATETIME2 DEFAULT GETDATE()
-);
-GO
